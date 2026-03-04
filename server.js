@@ -1,42 +1,49 @@
-const http = require('http');
-const url = require('url');
+const express = require('express');
+const cors = require('cors');
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 const cifraHandler = require('./api/cifra');
 
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-const server = http.createServer(async (req, res) => {
-  const parsedUrl = url.parse(req.url, true);
-  
-  if (parsedUrl.pathname === '/api/cifra') {
-    // Adapta a requisição e resposta HTTP para o formato que a função serverless espera
-    const adaptedReq = {
-      query: parsedUrl.query,
-      method: req.method
-    };
-    
-    // Cria um objeto de resposta adaptado
-    const adaptedRes = {
-      setHeader: (name, value) => res.setHeader(name, value),
-      status: (statusCode) => {
-        res.statusCode = statusCode;
-        return adaptedRes;
+app.use(cors());
+app.use(express.json());
+
+// Configuración de Swagger
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'CifraClub API Español',
+      version: '1.2.0',
+      description: 'API para obtener acordes y letras de CifraClub. Versión mejorada en Node.js.',
+    },
+    servers: [
+      {
+        url: `http://localhost:${PORT}`,
       },
-      json: (data) => {
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(data));
-      }
-    };
-    
-    // Chama o handler serverless
-    await cifraHandler(adaptedReq, adaptedRes);
-  } else {
-    res.statusCode = 404;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: 'Rota não encontrada' }));
-  }
+    ],
+  },
+  apis: ['./api/*.js'],
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+// Ruta principal traducida
+app.get('/api/cifra', cifraHandler);
+
+// Redirección simple para conveniencia
+app.get('/', (req, res) => {
+  res.json({
+    mensaje: 'Bienvenido a la API de CifraClub',
+    documentacion: '/docs',
+    estado: 'OK'
+  });
 });
 
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
-  console.log(`Teste a API em: http://localhost:${PORT}/api/cifra?artist=legiao-urbana&song=tempo-perdido`);
-}); 
+  console.log(`Documentación: http://localhost:${PORT}/docs`);
+});
